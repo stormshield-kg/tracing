@@ -1788,6 +1788,10 @@ feature! {
         }
 
         fn register_callsite(&self, metadata: &'static Metadata<'static>) -> Interest {
+            if self.is_empty() {
+                return Interest::always();
+            }
+
             // Return highest level of interest.
             let mut interest = Interest::never();
             for l in self {
@@ -1803,11 +1807,25 @@ feature! {
         }
 
         fn enabled(&self, metadata: &Metadata<'_>, ctx: Context<'_, S>) -> bool {
-            self.iter().all(|l| l.enabled(metadata, ctx.clone()))
+            if self.is_empty() {
+                return true;
+            }
+
+            // We can't use `any()` here because we *must* iterate over
+            // all the subscribers, rather than short-circuiting, in case any of
+            // them are using per-layer filtering.
+            self.iter().fold(false, |enabled, l| enabled | l.enabled(metadata, ctx.clone()))
         }
 
         fn event_enabled(&self, event: &Event<'_>, ctx: Context<'_, S>) -> bool {
-            self.iter().all(|l| l.event_enabled(event, ctx.clone()))
+            if self.is_empty() {
+                return true;
+            }
+
+            // We can't use `any()` here because we *must* iterate over
+            // all the subscribers, rather than short-circuiting, in case any of
+            // them are using per-layer filtering.
+            self.iter().fold(false, |event_enabled, l| event_enabled | l.event_enabled(event, ctx.clone()))
         }
 
         fn on_new_span(&self, attrs: &span::Attributes<'_>, id: &span::Id, ctx: Context<'_, S>) {
@@ -1817,6 +1835,10 @@ feature! {
         }
 
         fn max_level_hint(&self) -> Option<LevelFilter> {
+            if self.is_empty() {
+                return None;
+            }
+
             // Default to `OFF` if there are no inner layers.
             let mut max_level = LevelFilter::OFF;
             for l in self {
@@ -1863,6 +1885,12 @@ feature! {
         fn on_close(&self, id: span::Id, ctx: Context<'_, S>) {
             for l in self {
                 l.on_close(id.clone(), ctx.clone());
+            }
+        }
+
+        fn on_id_change(&self, old: &span::Id, new: &span::Id, ctx: Context<'_, S>) {
+            for l in self {
+                l.on_id_change(old, new, ctx.clone());
             }
         }
 

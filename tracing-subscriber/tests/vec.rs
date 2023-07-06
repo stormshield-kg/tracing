@@ -5,9 +5,8 @@ use tracing_subscriber::prelude::*;
 
 #[test]
 fn just_empty_vec() {
-    // Just a None means everything is off
     let subscriber = tracing_subscriber::registry().with(Vec::<LevelFilter>::new());
-    assert_eq!(subscriber.max_level_hint(), Some(LevelFilter::OFF));
+    assert_eq!(subscriber.max_level_hint(), None);
 }
 
 #[test]
