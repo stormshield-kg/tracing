@@ -190,7 +190,7 @@
 //! [`tracing`]: https://crates.io/crates/tracing
 //! [`fmt::format`]: mod@crate::fmt::format
 use std::{any::TypeId, error::Error, io};
-use tracing_core::{span, subscriber::Interest, Event, Metadata};
+use tracing_core::{span, subscriber::Interest, Dispatch, Event, Metadata};
 
 mod fmt_layer;
 #[cfg_attr(docsrs, doc(cfg(all(feature = "fmt", feature = "std"))))]
@@ -437,6 +437,11 @@ where
     #[inline]
     fn max_level_hint(&self) -> Option<tracing_core::LevelFilter> {
         self.inner.max_level_hint()
+    }
+
+    #[inline]
+    fn rebuild_span_filter_cache(&self, dispatch: &Dispatch) {
+        self.inner.rebuild_span_filter_cache(dispatch)
     }
 
     unsafe fn downcast_raw(&self, id: TypeId) -> Option<*const ()> {
