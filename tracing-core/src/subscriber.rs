@@ -462,6 +462,11 @@ pub trait Subscriber: 'static {
         span::Current::unknown()
     }
 
+    /// Rebuild filter cache for all spans
+    fn rebuild_span_filter_cache(&self, dispatch: &Dispatch) {
+        let _ = dispatch;
+    }
+
     // === Downcasting methods ================================================
 
     /// If `self` is the same type as the provided `TypeId`, returns an untyped
@@ -780,6 +785,11 @@ where
     }
 
     #[inline]
+    fn rebuild_span_filter_cache(&self, dispatch: &Dispatch) {
+        self.as_ref().rebuild_span_filter_cache(dispatch)
+    }
+
+    #[inline]
     unsafe fn downcast_raw(&self, id: TypeId) -> Option<*const ()> {
         if id == TypeId::of::<Self>() {
             return Some(self as *const Self as *const _);
@@ -862,6 +872,11 @@ where
     #[inline]
     fn current_span(&self) -> span::Current {
         self.as_ref().current_span()
+    }
+
+    #[inline]
+    fn rebuild_span_filter_cache(&self, dispatch: &Dispatch) {
+        self.as_ref().rebuild_span_filter_cache(dispatch)
     }
 
     #[inline]

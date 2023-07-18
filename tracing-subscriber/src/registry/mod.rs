@@ -145,7 +145,7 @@ pub trait LookupSpan<'a> {
     /// [check]: SpanData::is_enabled_for
     #[cfg(feature = "registry")]
     #[cfg_attr(docsrs, doc(cfg(feature = "registry")))]
-    fn register_filter(&mut self) -> FilterId {
+    fn register_filter(&self) -> FilterId {
         panic!(
             "{} does not currently support filters",
             std::any::type_name::<Self>()
@@ -232,6 +232,38 @@ feature! {
     use alloc::vec::{self, Vec};
 
     use core::{fmt,iter};
+
+    impl<'a, T> LookupSpan<'a> for alloc::boxed::Box<T>
+    where
+        T: LookupSpan<'a> + ?Sized,
+    {
+        type Data = <T as LookupSpan<'a>>::Data;
+
+        fn span_data(&'a self, id: &Id) -> Option<Self::Data> {
+            (**self).span_data(id)
+        }
+
+        #[cfg(feature = "registry")]
+        fn register_filter(&self) -> FilterId {
+            (**self).register_filter()
+        }
+    }
+
+    impl<'a, T> LookupSpan<'a> for alloc::sync::Arc<T>
+    where
+        T: LookupSpan<'a> + ?Sized,
+    {
+        type Data = <T as LookupSpan<'a>>::Data;
+
+        fn span_data(&'a self, id: &Id) -> Option<Self::Data> {
+            (**self).span_data(id)
+        }
+
+        #[cfg(feature = "registry")]
+        fn register_filter(&self) -> FilterId {
+            (**self).register_filter()
+        }
+    }
 
     /// An iterator over the parents of a span, ordered from root to leaf.
     ///
