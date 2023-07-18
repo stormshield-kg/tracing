@@ -317,7 +317,7 @@
 //! [`follows_from`]: Span::follows_from()
 //! [guard]: Entered
 //! [parent]: #span-relationships
-pub use tracing_core::span::{Attributes, Id, Record};
+pub use tracing_core::span::{rebuild_filter_cache, Attributes, Id, Record};
 
 use crate::stdlib::{
     cmp, fmt,
