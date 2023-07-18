@@ -120,7 +120,7 @@ where
         try_lock!(self.inner.read()).on_register_dispatch(subscriber);
     }
 
-    fn on_layer(&mut self, subscriber: &mut S) {
+    fn on_layer(&mut self, subscriber: &S) {
         try_lock!(self.inner.write(), else return).on_layer(subscriber);
     }
 
