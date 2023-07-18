@@ -205,6 +205,11 @@ where
         self.inner.current_span()
     }
 
+    #[inline]
+    fn rebuild_span_filter_cache(&self, dispatch: &Dispatch) {
+        self.inner.rebuild_span_filter_cache(dispatch)
+    }
+
     #[doc(hidden)]
     unsafe fn downcast_raw(&self, id: TypeId) -> Option<*const ()> {
         // Unlike the implementation of `Layer` for `Layered`, we don't have to
@@ -249,7 +254,7 @@ where
         self.inner.on_register_dispatch(subscriber);
     }
 
-    fn on_layer(&mut self, subscriber: &mut S) {
+    fn on_layer(&mut self, subscriber: &S) {
         self.layer.on_layer(subscriber);
         self.inner.on_layer(subscriber);
     }
@@ -393,7 +398,7 @@ where
     }
 
     #[cfg(all(feature = "registry", feature = "std"))]
-    fn register_filter(&mut self) -> FilterId {
+    fn register_filter(&self) -> FilterId {
         self.inner.register_filter()
     }
 }
@@ -414,7 +419,8 @@ where
 {
     pub(super) fn new(layer: A, inner: B, inner_has_layer_filter: bool) -> Self {
         #[cfg(all(feature = "registry", feature = "std"))]
-        let inner_is_registry = TypeId::of::<S>() == TypeId::of::<crate::registry::Registry>();
+        let inner_is_registry = TypeId::of::<S>() == TypeId::of::<crate::registry::Registry>()
+            || TypeId::of::<S>() == TypeId::of::<std::sync::Arc<crate::registry::Registry>>();
 
         #[cfg(not(all(feature = "registry", feature = "std")))]
         let inner_is_registry = false;

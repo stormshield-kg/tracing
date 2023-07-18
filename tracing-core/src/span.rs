@@ -1,4 +1,5 @@
 //! Spans represent periods of time in the execution of a program.
+use crate::callsite::DISPATCHERS;
 use crate::field::FieldSet;
 use crate::parent::Parent;
 use crate::stdlib::num::NonZeroU64;
@@ -53,6 +54,13 @@ enum CurrentInner {
     },
     None,
     Unknown,
+}
+
+/// Rebuild filter cache for all spans stored in the dispatchers.
+pub fn rebuild_filter_cache() {
+    DISPATCHERS.rebuilder().for_each(|dispatch| {
+        dispatch.subscriber().rebuild_span_filter_cache(dispatch);
+    });
 }
 
 // ===== impl Span =====

@@ -782,7 +782,7 @@ where
     /// [`register_filter`]: crate::registry::LookupSpan::register_filter
     /// [per-layer filtering]: #per-layer-filtering
     /// [`FilterId`]: crate::filter::FilterId
-    fn on_layer(&mut self, subscriber: &mut S) {
+    fn on_layer(&mut self, subscriber: &S) {
         let _ = subscriber;
     }
 
@@ -1089,12 +1089,12 @@ where
     ///```
     ///
     /// [`Subscriber`]: tracing_core::Subscriber
-    fn with_subscriber(mut self, mut inner: S) -> Layered<Self, S>
+    fn with_subscriber(mut self, inner: S) -> Layered<Self, S>
     where
         Self: Sized,
     {
         let inner_has_layer_filter = filter::subscriber_has_plf(&inner);
-        self.on_layer(&mut inner);
+        self.on_layer(&inner);
         Layered::new(self, inner, inner_has_layer_filter)
     }
 
@@ -1562,7 +1562,7 @@ where
     L: Layer<S>,
     S: Subscriber,
 {
-    fn on_layer(&mut self, subscriber: &mut S) {
+    fn on_layer(&mut self, subscriber: &S) {
         if let Some(ref mut layer) = self {
             layer.on_layer(subscriber)
         }
@@ -1686,7 +1686,7 @@ feature! {
             }
 
             #[inline]
-            fn on_layer(&mut self, subscriber: &mut S) {
+            fn on_layer(&mut self, subscriber: &S) {
                 self.deref_mut().on_layer(subscriber);
             }
 
@@ -1781,7 +1781,7 @@ feature! {
         S: Subscriber,
     {
 
-        fn on_layer(&mut self, subscriber: &mut S) {
+        fn on_layer(&mut self, subscriber: &S) {
             for l in self {
                 l.on_layer(subscriber);
             }

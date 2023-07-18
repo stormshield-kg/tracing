@@ -258,7 +258,7 @@ static CALLSITES: Callsites = Callsites {
     has_locked_callsites: AtomicBool::new(false),
 };
 
-static DISPATCHERS: Dispatchers = Dispatchers::new();
+pub(crate) static DISPATCHERS: Dispatchers = Dispatchers::new();
 
 static LOCKED_CALLSITES: Lazy<Mutex<Vec<&'static dyn Callsite>>> = Lazy::new(Default::default);
 
@@ -521,14 +521,14 @@ mod dispatchers {
         RwLock, RwLockReadGuard, RwLockWriteGuard,
     };
 
-    pub(super) struct Dispatchers {
+    pub(crate) struct Dispatchers {
         has_just_one: AtomicBool,
     }
 
     static LOCKED_DISPATCHERS: Lazy<RwLock<Vec<dispatcher::Registrar>>> =
         Lazy::new(Default::default);
 
-    pub(super) enum Rebuilder<'a> {
+    pub(crate) enum Rebuilder<'a> {
         JustOne,
         Read(RwLockReadGuard<'a, Vec<dispatcher::Registrar>>),
         Write(RwLockWriteGuard<'a, Vec<dispatcher::Registrar>>),
@@ -541,7 +541,7 @@ mod dispatchers {
             }
         }
 
-        pub(super) fn rebuilder(&self) -> Rebuilder<'_> {
+        pub(crate) fn rebuilder(&self) -> Rebuilder<'_> {
             if self.has_just_one.load(Ordering::SeqCst) {
                 return Rebuilder::JustOne;
             }
@@ -559,7 +559,7 @@ mod dispatchers {
     }
 
     impl Rebuilder<'_> {
-        pub(super) fn for_each(&self, mut f: impl FnMut(&dispatcher::Dispatch)) {
+        pub(crate) fn for_each(&self, mut f: impl FnMut(&dispatcher::Dispatch)) {
             let iter = match self {
                 Rebuilder::JustOne => {
                     dispatcher::get_default(f);
