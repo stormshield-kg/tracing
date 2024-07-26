@@ -161,50 +161,52 @@ where
         let mut serializer = serializer.serialize_map(None)?;
 
         let ext = self.0.extensions();
-        let data = ext
-            .get::<FormattedFields<N>>()
-            .expect("Unable to find FormattedFields in extensions; this is a bug");
-
-        // TODO: let's _not_ do this, but this resolves
-        // https://github.com/tokio-rs/tracing/issues/391.
-        // We should probably rework this to use a `serde_json::Value` or something
-        // similar in a JSON-specific layer, but I'd (david)
-        // rather have a uglier fix now rather than shipping broken JSON.
-        match serde_json::from_str::<serde_json::Value>(data) {
-            Ok(serde_json::Value::Object(fields)) => {
-                for field in fields {
-                    serializer.serialize_entry(&field.0, &field.1)?;
+        if let Some(data) = ext.get::<FormattedFields<N>>() {
+            // TODO: let's _not_ do this, but this resolves
+            // https://github.com/tokio-rs/tracing/issues/391.
+            // We should probably rework this to use a `serde_json::Value` or something
+            // similar in a JSON-specific layer, but I'd (david)
+            // rather have a uglier fix now rather than shipping broken JSON.
+            match serde_json::from_str::<serde_json::Value>(data) {
+                Ok(serde_json::Value::Object(fields)) => {
+                    for field in fields {
+                        serializer.serialize_entry(&field.0, &field.1)?;
+                    }
                 }
+                // We have fields for this span which are valid JSON but not an object.
+                // This is probably a bug, so panic if we're in debug mode
+                Ok(_) if cfg!(debug_assertions) => panic!(
+                    "span '{}' had malformed fields! this is a bug.\n  \
+                    error: invalid JSON object\n  fields: {:?}",
+                    self.0.metadata().name(),
+                    data
+                ),
+                // If we *aren't* in debug mode, it's probably best not to
+                // crash the program, let's log the field found but also an
+                // message saying it's type  is invalid
+                Ok(value) => {
+                    serializer.serialize_entry("field", &value)?;
+                    serializer.serialize_entry("field_error", "field was no a valid object")?
+                }
+                // We have previously recorded fields for this span
+                // should be valid JSON. However, they appear to *not*
+                // be valid JSON. This is almost certainly a bug, so
+                // panic if we're in debug mode
+                Err(e) if cfg!(debug_assertions) => panic!(
+                    "span '{}' had malformed fields! this is a bug.\n  error: {}\n  fields: {:?}",
+                    self.0.metadata().name(),
+                    e,
+                    data
+                ),
+                // If we *aren't* in debug mode, it's probably best not
+                // crash the program, but let's at least make sure it's clear
+                // that the fields are not supposed to be missing.
+                Err(e) => serializer.serialize_entry("field_error", &format!("{}", e))?,
             }
-            // We have fields for this span which are valid JSON but not an object.
-            // This is probably a bug, so panic if we're in debug mode
-            Ok(_) if cfg!(debug_assertions) => panic!(
-                "span '{}' had malformed fields! this is a bug.\n  error: invalid JSON object\n  fields: {:?}",
-                self.0.metadata().name(),
-                data
-            ),
-            // If we *aren't* in debug mode, it's probably best not to
-            // crash the program, let's log the field found but also an
-            // message saying it's type  is invalid
-            Ok(value) => {
-                serializer.serialize_entry("field", &value)?;
-                serializer.serialize_entry("field_error", "field was no a valid object")?
-            }
-            // We have previously recorded fields for this span
-            // should be valid JSON. However, they appear to *not*
-            // be valid JSON. This is almost certainly a bug, so
-            // panic if we're in debug mode
-            Err(e) if cfg!(debug_assertions) => panic!(
-                "span '{}' had malformed fields! this is a bug.\n  error: {}\n  fields: {:?}",
-                self.0.metadata().name(),
-                e,
-                data
-            ),
-            // If we *aren't* in debug mode, it's probably best not
-            // crash the program, but let's at least make sure it's clear
-            // that the fields are not supposed to be missing.
-            Err(e) => serializer.serialize_entry("field_error", &format!("{}", e))?,
-        };
+        } else {
+            serializer.serialize_entry("field_error", "invalid span")?;
+        }
+
         serializer.serialize_entry("name", self.0.metadata().name())?;
         serializer.end()
     }
