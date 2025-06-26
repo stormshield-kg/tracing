@@ -277,6 +277,7 @@ impl<'a> MakeWriter<'a> for NonBlocking {
 
 impl WorkerGuard {
     fn new(handle: JoinHandle<()>, sender: Sender<Msg>, shutdown: Sender<()>) -> Self {
+        println!("new worker guard");
         WorkerGuard {
             _guard: Some(handle),
             sender,
@@ -287,22 +288,31 @@ impl WorkerGuard {
 
 impl Drop for WorkerGuard {
     fn drop(&mut self) {
+        println!("dropping worker guard");
+        println!("send shutdown msg to worker thread");
         match self
             .sender
             .send_timeout(Msg::Shutdown, Duration::from_millis(100))
         {
             Ok(_) => {
-                // Attempt to wait for `Worker` to flush all messages before dropping. This happens
-                // when the `Worker` calls `recv()` on a zero-capacity channel. Use `send_timeout`
-                // so that drop is not blocked indefinitely.
-                // TODO: Make timeout configurable.
-                if let Err(error) = self.shutdown.send_timeout((), Duration::from_millis(1000)) {
-                    println!("received error {}", error);
-                } else {
-                    println!("shutdown received by the worker guard, all logs should have been flushed");
+                println!("waiting for worker thread to get shutdonwn message");
+                if let Some(handle) = self._guard.take() {
+                    // Attempt to wait for `Worker` to flush all messages before dropping. This happens
+                    // when the `Worker` calls `recv()` on a zero-capacity channel. Use `send_timeout`
+                    // so that drop is not blocked indefinitely.
+                    // TODO: Make timeout configurable.
+                    println!("sending shutdown command to worker thread");
+                    if let Ok(_) = self.shutdown.send_timeout((), Duration::from_millis(1000)) {
+                        // The worker thread acknowledged the shutdown, waiting for it to finish
+                        println!("waiting for the worker thread");
+                        let _ = handle.join();
+                    }
+                    println!("worker thread stopped, finishing drop");
                 }
             }
-            Err(SendTimeoutError::Disconnected(_)) => (),
+            Err(SendTimeoutError::Disconnected(_)) => {
+                println!("unable to send shutdown signal, channel is diconnected");
+            },
             Err(SendTimeoutError::Timeout(e)) => println!(
                 "Failed to send shutdown signal to logging worker. Error: {:?}",
                 e
